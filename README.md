@@ -35,12 +35,12 @@ While running, every metric snapshot is appended to **`iot_monitor.csv`** in the
 
 ```
 timestamp,cpu_usage,free_memory_mb,temperature_c,sensor
-1711234567,12.4,1823,47.0,63
-1711234568,15.1,1820,47.2,88
+2026-03-23 14:02:47,12.4,1823,47.0,63
+2026-03-23 14:02:48,15.1,1820,47.2,88
 ...
 ```
 
-The `timestamp` column is a Unix epoch (`time_t`). Convert it with `date -d @1711234567`.
+The `timestamp` column is in `YYYY-MM-DD HH:MM:SS` local time format.
 
 ---
 

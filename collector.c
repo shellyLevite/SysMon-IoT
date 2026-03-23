@@ -108,8 +108,11 @@ void *data_collector_thread(void *arg)
 
         /* Append one CSV row — done outside the lock, uses local copies */
         if (logfile) {
-            fprintf(logfile, "%ld,%.1f,%ld,%.1f,%d\n",
-                    (long)time(NULL), cpu, mem, temp, sensor);
+            time_t now = time(NULL);
+            char   ts[20];
+            strftime(ts, sizeof(ts), "%Y-%m-%d %H:%M:%S", localtime(&now));
+            fprintf(logfile, "%s,%.1f,%ld,%.1f,%d\n",
+                    ts, cpu, mem, temp, sensor);
             fflush(logfile);
         }
 
