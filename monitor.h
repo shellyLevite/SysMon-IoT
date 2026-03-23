@@ -2,6 +2,7 @@
 #define MONITOR_H
 
 #include <pthread.h>
+#include <signal.h>
 
 /* Holds all system metrics shared between threads */
 typedef struct {
@@ -14,6 +15,9 @@ typedef struct {
 /* Global shared data and mutex — defined in main.c */
 extern SystemMetrics g_metrics;
 extern pthread_mutex_t g_metrics_mutex;
+
+/* Global running flag — set to 0 by the SIGINT handler to stop all threads */
+extern volatile sig_atomic_t g_running;
 
 /* Thread function declarations */
 void *data_collector_thread(void *arg);

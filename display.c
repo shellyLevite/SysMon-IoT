@@ -11,7 +11,7 @@ void *data_display_thread(void *arg)
 {
     (void)arg; /* unused parameter */
 
-    while (1) {
+    while (g_running) {
         /* Take a local copy so we hold the mutex as briefly as possible */
         SystemMetrics snapshot;
         pthread_mutex_lock(&g_metrics_mutex);
@@ -35,11 +35,18 @@ void *data_display_thread(void *arg)
 
         printf("  IoT Sensor      : %d units\n", snapshot.simulated_sensor);
         printf("-----------------------------------------\n");
+
+        /* Alert thresholds — warn the user if values cross danger levels */
+        if (snapshot.cpu_usage > 80.0f)
+            printf("  !! ALERT: High CPU usage (%.1f %%) !!\n", snapshot.cpu_usage);
+        if (snapshot.temperature > 0.0f && snapshot.temperature > 75.0f)
+            printf("  !! ALERT: High temperature (%.1f C) !!\n", snapshot.temperature);
+
         printf("  Press Ctrl+C to exit.\n");
         printf("=========================================\n");
 
         fflush(stdout);
         sleep(1);
     }
-    return NULL;
+    return NULL; /* Reached when g_running == 0 */
 }

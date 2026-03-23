@@ -7,11 +7,12 @@ Collects CPU, memory, and temperature metrics from `/proc` and `/sys`, and simul
 =========================================
    Embedded IoT Device Monitor — Linux
 =========================================
-  CPU Usage       : 12.4 %
+  CPU Usage       : 83.2 %
   Free Memory     : 1823 MB
   Temperature     : 47.0 °C
   IoT Sensor      : 63 units
 -----------------------------------------
+  !! ALERT: High CPU usage (83.2 %) !!
   Press Ctrl+C to exit.
 =========================================
 ```
@@ -26,7 +27,20 @@ make
 ./iot_monitor
 ```
 
-Press **Ctrl+C** to exit.
+Press **Ctrl+C** to exit cleanly. The program catches the signal, stops both threads, closes the log file, and prints a confirmation message.
+
+### CSV Log
+
+While running, every metric snapshot is appended to **`iot_monitor.csv`** in the current directory:
+
+```
+timestamp,cpu_usage,free_memory_mb,temperature_c,sensor
+1711234567,12.4,1823,47.0,63
+1711234568,15.1,1820,47.2,88
+...
+```
+
+The `timestamp` column is a Unix epoch (`time_t`). Convert it with `date -d @1711234567`.
 
 ---
 
@@ -129,19 +143,28 @@ $(TARGET): $(SRCS) monitor.h
 
 ---
 
-## Possible Improvements (Impressive but Not Overengineering)
+## Improvements Implemented
 
-These are real, interview-worthy upgrades — each one is a focused, self-contained addition.
+Three improvements have been added on top of the base project:
+
+### ✅ 1. CSV Log File (`collector.c`)
+Every second, one row is appended to `iot_monitor.csv` with a Unix timestamp and all four metrics. The file handle is opened once when the thread starts and closed cleanly on shutdown. This provides persistent observability without any extra dependencies.
+
+### ✅ 3. Alert Thresholds (`display.c`)
+The dashboard prints a warning line if:
+- **CPU usage > 80 %**
+- **Temperature > 75 °C** (skipped on systems where temperature is unavailable)
+
+Thresholds are constants that are easy to tune. In a real IoT deployment these would trigger a notification or a hardware response.
+
+### ✅ 5. Graceful SIGINT Shutdown (`main.c`, `monitor.h`)
+A `volatile sig_atomic_t g_running` flag is shared across all modules. A `handle_sigint()` signal handler sets it to `0` when Ctrl+C is pressed. Both threads check `g_running` in their loop condition and exit cleanly, allowing `pthread_join` to return and `pthread_mutex_destroy` to run properly.
 
 ---
 
-### 1. Add a Log File (1–2 hours)
-Write each metric snapshot to a `.csv` file alongside the live display. Trivial to add in `collector.c`:
-```c
-fprintf(logfile, "%ld,%.1f,%ld,%.1f,%d\n",
-        time(NULL), cpu, mem, temp, sensor);
-```
-**Why it impresses:** Shows awareness of observability and data persistence — a real requirement in any IoT deployment.
+## Possible Future Improvements
+
+Remaining ideas for further development:
 
 ---
 
@@ -151,16 +174,6 @@ Instead of hardcoded `sleep(1)`, pass the interval as `argv[1]`:
 int interval = argc > 1 ? atoi(argv[1]) : 1;
 ```
 **Why it impresses:** Shows you understand that parameters shouldn't be magic numbers — a basic but important embedded systems principle.
-
----
-
-### 3. Add an Alert Threshold (1–2 hours)
-Print a warning line if CPU exceeds a threshold:
-```c
-if (snapshot.cpu_usage > 80.0f)
-    printf("  !! WARNING: High CPU usage detected !!\n");
-```
-**Why it impresses:** Turns a passive monitor into a basic alerting system — exactly what a real IoT monitor does.
 
 ---
 
@@ -174,19 +187,6 @@ for (int i = 0; i < 5; i++) {
 }
 ```
 **Why it impresses:** Shows knowledge of the Linux sysfs tree and that real hardware has multiple sensors.
-
----
-
-### 5. Add a Graceful Shutdown with `SIGINT` (1 hour)
-Instead of relying on Ctrl+C to kill the process hard, catch the signal and set a flag:
-```c
-volatile sig_atomic_t g_running = 1;
-
-void handle_sigint(int sig) { g_running = 0; }
-
-// In thread loops: while (g_running) { ... }
-```
-**Why it impresses:** Demonstrates understanding of signal handling and clean resource teardown — critical in embedded and production systems.
 
 ---
 

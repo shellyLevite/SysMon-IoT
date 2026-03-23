@@ -2,7 +2,10 @@
 #include <stdlib.h>
 #include <string.h>
 #include <unistd.h>
+#include <time.h>
 #include "monitor.h"
+
+#define LOG_FILE "iot_monitor.csv"
 
 /* -------------------------------------------------------------------
  * read_cpu_usage()
@@ -81,7 +84,14 @@ void *data_collector_thread(void *arg)
 {
     (void)arg; /* unused parameter */
 
-    while (1) {
+    /* Open the CSV log file once for the lifetime of the thread */
+    FILE *logfile = fopen(LOG_FILE, "w");
+    if (logfile) {
+        fprintf(logfile, "timestamp,cpu_usage,free_memory_mb,temperature_c,sensor\n");
+        fflush(logfile);
+    }
+
+    while (g_running) {
         /* Collect data OUTSIDE the lock so we don't block the display */
         float cpu   = read_cpu_usage();
         long  mem   = read_free_memory_mb();
@@ -96,7 +106,18 @@ void *data_collector_thread(void *arg)
         g_metrics.simulated_sensor = sensor;
         pthread_mutex_unlock(&g_metrics_mutex);
 
+        /* Append one CSV row — done outside the lock, uses local copies */
+        if (logfile) {
+            fprintf(logfile, "%ld,%.1f,%ld,%.1f,%d\n",
+                    (long)time(NULL), cpu, mem, temp, sensor);
+            fflush(logfile);
+        }
+
         sleep(1);
     }
-    return NULL;
+
+    if (logfile)
+        fclose(logfile);
+
+    return NULL; /* Reached when g_running == 0 */
 }

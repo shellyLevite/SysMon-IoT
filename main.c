@@ -4,14 +4,25 @@
 #include "monitor.h"
 
 /* Global definitions (declared extern in monitor.h) */
-SystemMetrics   g_metrics       = {0};
-pthread_mutex_t g_metrics_mutex = PTHREAD_MUTEX_INITIALIZER;
+SystemMetrics          g_metrics       = {0};
+pthread_mutex_t        g_metrics_mutex = PTHREAD_MUTEX_INITIALIZER;
+volatile sig_atomic_t  g_running       = 1;
+
+/* Signal handler — called on Ctrl+C. Just clears the flag; threads exit cleanly. */
+static void handle_sigint(int sig)
+{
+    (void)sig;
+    g_running = 0;
+}
 
 int main(void)
 {
     pthread_t collector_tid, display_tid;
 
     srand(42); /* Seed for the simulated sensor values */
+
+    /* Register the SIGINT handler (Ctrl+C) for graceful shutdown */
+    signal(SIGINT, handle_sigint);
 
     printf("Starting IoT Device Monitor...\n");
 
@@ -26,10 +37,11 @@ int main(void)
         return EXIT_FAILURE;
     }
 
-    /* Wait forever — the threads loop indefinitely until Ctrl+C */
+    /* Wait for both threads to finish (they exit when g_running becomes 0) */
     pthread_join(collector_tid, NULL);
     pthread_join(display_tid,   NULL);
 
     pthread_mutex_destroy(&g_metrics_mutex);
+    printf("\nIoT monitor stopped cleanly.\n");
     return EXIT_SUCCESS;
 }
